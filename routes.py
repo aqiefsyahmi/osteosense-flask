@@ -1,5 +1,5 @@
 from app import api, db, bcrypt
-from models import Doctor, Users
+from models import Doctor, Users, Admin
 from schemas import UserSchema
 from flask import jsonify, request
 from flask_jwt_extended import create_access_token, unset_jwt_cookies, jwt_required, get_jwt_identity
@@ -10,6 +10,9 @@ users_schema = UserSchema(many=True)
 @api.route("/")
 def hello_world():
     return "<p>Hello, World!</p>"
+
+
+#PATIENTS
 
 @api.route('/listusers',methods = ['GET'])
 def listusers():
@@ -61,6 +64,8 @@ def useradd():
         # Return the error message
         return jsonify({"error": str(e)}), 500
 
+#DOCTORS
+
 @api.route('/logintoken', methods=["POST"])
 def create_token():
 
@@ -78,12 +83,12 @@ def create_token():
     if not bcrypt.check_password_hash(doctor.password, password):
         return jsonify ({"error": "Unauthorized"}), 401
 
-    access_token = create_access_token(identity=email)
-    # response =  {"access_token": access_token}
+    doctor_token = create_access_token(identity=email)
+    # response =  {"doctor_token": doctor_token}
 
     return jsonify({
         "email": email,
-        "access_token": access_token
+        "doctor_token": doctor_token
     })
     # return response
 
@@ -127,6 +132,77 @@ def my_profile(getemail):
         "name": doctor.name,
         "email": doctor.email,
         "about": doctor.about,
+    }
+
+    return response_body
+
+#ADMIN
+
+@api.route('/logintokenadmin', methods=["POST"])
+def create_token_admin():
+
+    email = request.json.get('email', None)
+    password = request.json.get('password', None)
+
+    admin = Admin.query.filter_by(email=email).first()
+
+    # if email != "test" or password != "test":
+    #     return {"msg": "Wrong email or password"}, 401
+
+    if admin is None:
+        return jsonify({"error": "Wrong email or password"}), 401
+    
+    if not bcrypt.check_password_hash(admin.password, password):
+        return jsonify ({"error": "Unauthorized"}), 401
+
+    admin_token = create_access_token(identity=email)
+    # response =  {"admin_token": admin_token}
+
+    return jsonify({
+        "email": email,
+        "admin_token": admin_token
+    })
+    # return response
+
+@api.route("/signupadmin", methods=["POST"])
+def signupadmin():
+    email = request.json["email"]
+    password = request.json["password"]
+
+    user_exists = Admin.query.filter_by(email=email).first() is not None
+
+    if user_exists:
+        return jsonify({"error": "Email already exists"}), 409
+    
+    hashed_password = bcrypt.generate_password_hash(password)
+    new_user = Admin(username="admin", email=email, password=hashed_password)
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({
+        "message": "User successfully signed up",
+        "email": email
+    }), 201
+    
+@api.route("/logoutadmin", methods=["POST"])
+def logoutadmin():
+    response = jsonify({"msg": "logout successful"})
+    unset_jwt_cookies(response)
+    return response
+    
+@api.route('/profileadmin/<getemail>')
+@jwt_required()
+def my_profile_admin(getemail):
+    print(getemail)
+    if not getemail:
+        return jsonify({"error": "Unauthorized Access"}), 401
+    
+    admin = Admin.query.filter_by(email=getemail).first()
+
+    response_body = {
+        "id": admin.id,
+        "name": admin.username,
+        "email": admin.email,
     }
 
     return response_body
