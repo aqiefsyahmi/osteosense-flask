@@ -1,11 +1,14 @@
 from app import api, db, bcrypt
 from models import Doctor, Users, Admin
-from schemas import UserSchema
+from schemas import UserSchema, DoctorSchema
 from flask import jsonify, request
 from flask_jwt_extended import create_access_token, unset_jwt_cookies, jwt_required, get_jwt_identity
 
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)
+
+doctor_schema = DoctorSchema()
+doctors_schema = DoctorSchema(many=True)
 
 @api.route("/")
 def hello_world():
@@ -66,52 +69,102 @@ def useradd():
 
 #DOCTORS
 
-@api.route('/logintoken', methods=["POST"])
+@api.route('/logintokendoctors', methods=["POST"])
 def create_token():
 
-    email = request.json.get('email', None)
-    password = request.json.get('password', None)
+    data = request.get_json()
+    email = data['email']
+    password = data['password']
+    print('Received data:', email , password)
 
     doctor = Doctor.query.filter_by(email=email).first()
 
-    # if email != "test" or password != "test":
-    #     return {"msg": "Wrong email or password"}, 401
+    if doctor and bcrypt.check_password_hash(doctor.password, password):
+        access_token = create_access_token(identity=doctor.id)
+        return jsonify({'message': 'Login Success', 'doctor_token': access_token, 'email': email})
+    else:
+        return jsonify({'message': 'Login Failed'}), 401
 
-    if doctor is None:
-        return jsonify({"error": "Wrong email or password"}), 401
+@api.route("/signupdoctor", methods=["POST"])
+def signupdoctor():
+    try:
+        # Extracting fields from the JSON request
+        email = request.json.get("email")
+        username = request.json.get("username")
+        password = request.json.get("password")
+        fullname = request.json.get("fullname")
+        phoneno = request.json.get("phoneno")
+
+        # Check if the email already exists
+        user_exists = Doctor.query.filter_by(email=email).first() is not None
+
+        if user_exists:
+            return jsonify({"error": "Email already exists"}), 409
+
+        # Hashing the password
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+        # Creating a new doctor user
+        new_user = Doctor(username=username, email=email, password=hashed_password, fullname=fullname, phoneno=phoneno)
+        
+        # Adding and committing the new user to the database
+        db.session.add(new_user)
+        db.session.commit()
+
+        return jsonify({
+            "message": "User successfully signed up",
+            "email": email
+        }), 201
+
+    except Exception as e:
+        # Rollback the session in case of an error
+        db.session.rollback()
+        # Return the error message
+        return jsonify({"error": str(e)}), 500
+
+
+    except Exception as e:
+        # Rollback the session in case of an error
+        db.session.rollback()
+        # Return the error message
+        return jsonify({"error": str(e)}), 500
     
-    if not bcrypt.check_password_hash(doctor.password, password):
-        return jsonify ({"error": "Unauthorized"}), 401
+@api.route('/listdoctors',methods = ['GET'])
+def listdoctors():
+    all_doctors = Doctor.query.all()
+    results = doctors_schema.dump(all_doctors)
+    return jsonify(results)
 
-    doctor_token = create_access_token(identity=email)
-    # response =  {"doctor_token": doctor_token}
+@api.route('/doctordetails/<id>',methods = ['GET'])
+def doctordetails(id):
+    doctor = Doctor.query.get(id)
+    return doctor_schema.jsonify(doctor)
 
-    return jsonify({
-        "email": email,
-        "doctor_token": doctor_token
-    })
-    # return response
+@api.route('/doctorupdate/<id>',methods = ['PUT'])
+def doctorupdate(id):
+    doctor = Doctor.query.get(id)
 
-@api.route("/signup", methods=["POST"])
-def signup():
-    email = request.json["email"]
-    password = request.json["password"]
+    fullname = request.json['fullname']
+    username = request.json['username']
+    email = request.json['email']
+    password = request.json['password']
+    phoneno = request.json['phoneno']
 
-    user_exists = Doctor.query.filter_by(email=email).first() is not None
+    if fullname:
+        doctor.fullname = fullname
+    if username:
+        doctor.username = username
+    if email:
+        doctor.email = email
+    if password:
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        doctor.password = hashed_password
+    if phoneno:
+        doctor.phoneno = phoneno
 
-    if user_exists:
-        return jsonify({"error": "Email already exists"}), 409
-    
-    hashed_password = bcrypt.generate_password_hash(password)
-    new_user = Doctor(name="doctor3", email=email, password=hashed_password, about="sample about doctor3")
-    db.session.add(new_user)
     db.session.commit()
+    return doctor_schema.jsonify(doctor)
 
-    return jsonify({
-        "message": "User successfully signed up",
-        "email": email
-    }), 201
-    
 @api.route("/logout", methods=["POST"])
 def logout():
     response = jsonify({"msg": "logout successful"})
@@ -119,7 +172,6 @@ def logout():
     return response
     
 @api.route('/profile/<getemail>')
-@jwt_required()
 def my_profile(getemail):
     print(getemail)
     if not getemail:
@@ -129,9 +181,10 @@ def my_profile(getemail):
 
     response_body = {
         "id": doctor.id,
-        "name": doctor.name,
+        "name": doctor.username,
         "email": doctor.email,
-        "about": doctor.about,
+        "fullname" : doctor.fullname,
+        "phoneno" : doctor.phoneno
     }
 
     return response_body
@@ -141,28 +194,18 @@ def my_profile(getemail):
 @api.route('/logintokenadmin', methods=["POST"])
 def create_token_admin():
 
-    email = request.json.get('email', None)
-    password = request.json.get('password', None)
+    data = request.get_json()
+    email = data['email']
+    password = data['password']
+    print('Received data:', email , password)
 
     admin = Admin.query.filter_by(email=email).first()
 
-    # if email != "test" or password != "test":
-    #     return {"msg": "Wrong email or password"}, 401
-
-    if admin is None:
-        return jsonify({"error": "Wrong email or password"}), 401
-    
-    if not bcrypt.check_password_hash(admin.password, password):
-        return jsonify ({"error": "Unauthorized"}), 401
-
-    admin_token = create_access_token(identity=email)
-    # response =  {"admin_token": admin_token}
-
-    return jsonify({
-        "email": email,
-        "admin_token": admin_token
-    })
-    # return response
+    if admin and bcrypt.check_password_hash(admin.password, password):
+        access_token = create_access_token(identity=admin.id)
+        return jsonify({'message': 'Login Success', 'admin_token': access_token, 'email': email})
+    else:
+        return jsonify({'message': 'Login Failed'}), 401
 
 @api.route("/signupadmin", methods=["POST"])
 def signupadmin():
@@ -183,7 +226,7 @@ def signupadmin():
         "message": "User successfully signed up",
         "email": email
     }), 201
-    
+
 @api.route("/logoutadmin", methods=["POST"])
 def logoutadmin():
     response = jsonify({"msg": "logout successful"})
@@ -206,3 +249,10 @@ def my_profile_admin(getemail):
     }
 
     return response_body
+
+@api.route('/doctordelete/<id>',methods = ['DELETE'])
+def doctordelete(id):
+    doctor = Doctor.query.get(id)
+    db.session.delete(doctor)
+    db.session.commit()
+    return doctor_schema.jsonify(doctor)

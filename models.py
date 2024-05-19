@@ -12,10 +12,11 @@ class Doctor(db.Model):
     __tablename__ = "doctors"
 
     id = db.Column(db.String(11), primary_key=True, unique=True, default=get_uuid)
-    name = db.Column(db.String(150), unique=True)
+    username = db.Column(db.String(150), unique=True)
     email = db.Column(db.String(150), unique=True)
     password = db.Column(db.Text, nullable=False)
-    about = db.Column(db.Text, nullable=False)
+    fullname = db.Column(db.String(150), nullable=False)
+    phoneno = db.Column(db.String(15), nullable=False)
 
     # DOCTORS
 class Admin(db.Model):
