@@ -2,6 +2,7 @@ from app import db
 from datetime import datetime
 from uuid import uuid4
 
+
 def get_uuid():
     return uuid4().hex
 
@@ -12,13 +13,14 @@ class Doctor(db.Model):
     __tablename__ = "doctors"
 
     id = db.Column(db.String(11), primary_key=True, unique=True, default=get_uuid)
-    username = db.Column(db.String(150), unique=True)
-    email = db.Column(db.String(150), unique=True)
-    password = db.Column(db.Text, nullable=False)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(150), nullable=False)
     fullname = db.Column(db.String(150), nullable=False)
-    phoneno = db.Column(db.String(15), nullable=False)
+    phoneno = db.Column(db.String(15), unique=True, nullable=False)
 
-    # DOCTORS
+
+# ADMIN
 class Admin(db.Model):
     # Table name for the Doctor model
     __tablename__ = "admin"
@@ -27,6 +29,7 @@ class Admin(db.Model):
     username = db.Column(db.String(150), unique=True)
     email = db.Column(db.String(150), unique=True)
     password = db.Column(db.String(150), nullable=False)
+
 
 class Users(db.Model):
     # Table name for the Users model
@@ -41,3 +44,31 @@ class Users(db.Model):
         # Constructor method for the Users model
         self.name = name
         self.email = email
+
+
+# PATIENT
+class Patient(db.Model):
+    # Table name for the Doctor model
+    __tablename__ = "patients"
+
+    id = db.Column(db.String(11), primary_key=True, unique=True, default=get_uuid)
+    fullname = db.Column(db.String(150), nullable=False)
+    age = db.Column(db.String(3), nullable=False)
+    gender = db.Column(db.String(6), nullable=False)
+    email = db.Column(db.String(150), unique=True, nullable=False)
+    phoneno = db.Column(db.String(15), unique=True, nullable=False)
+
+
+# PREDICTION
+class Prediction(db.Model):
+    __tablename__ = "imageprediction"
+
+    id = db.Column(db.String(11), primary_key=True, unique=True, default=get_uuid)
+    fullname = db.Column(db.String(150), nullable=False)
+    age = db.Column(db.String(3), nullable=False)
+    gender = db.Column(db.String(6), nullable=False)
+    datetimeprediction = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    resultprediction = db.Column(db.String(15), nullable=False)
+    email = db.Column(db.String(150), nullable=False)
+    phoneno = db.Column(db.String(15), nullable=False)
+    doctorid = db.Column(db.String(11), nullable=False)
