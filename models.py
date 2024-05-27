@@ -1,3 +1,5 @@
+from enum import unique
+from operator import index
 from app import db
 from datetime import datetime
 from uuid import uuid4
@@ -72,3 +74,11 @@ class Prediction(db.Model):
     email = db.Column(db.String(150), nullable=False)
     phoneno = db.Column(db.String(15), nullable=False)
     doctorid = db.Column(db.String(11), nullable=False)
+
+
+# IMAGE UPLOAD TEST
+class Images(db.Model):
+    __tablename__ = "images"
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(120), index=True, unique=True)

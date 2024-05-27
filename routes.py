@@ -1,16 +1,25 @@
 from io import BytesIO
+from unittest import result
 from PIL import Image
 import cv2
 import numpy as np
+from sqlalchemy import false
 import tensorflow as tf
+
+# for image
+import os
+import urllib.request
+from werkzeug.utils import secure_filename
+
 from app import api, db, bcrypt
-from models import Doctor, Users, Admin, Patient, Prediction
+from models import Doctor, Users, Admin, Patient, Prediction, Images
 from schemas import (
     UserSchema,
     AdminSchema,
     DoctorSchema,
     PatientSchema,
     PredictionSchema,
+    ImageSchema,
 )
 from flask import jsonify, request
 from flask_jwt_extended import (
@@ -34,6 +43,9 @@ patients_schema = PatientSchema(many=True)
 
 prediction_schema = PredictionSchema()
 predictions_schema = PredictionSchema(many=True)
+
+image_schema = ImageSchema()
+images_schema = ImageSchema(many=True)
 
 
 @api.route("/")
@@ -113,7 +125,12 @@ def create_token():
     if doctor and bcrypt.check_password_hash(doctor.password, password):
         access_token = create_access_token(identity=doctor.id)
         return jsonify(
-            {"message": "Login Success", "doctor_token": access_token, "email": email}
+            {
+                "message": "Login Success",
+                "doctor_token": access_token,
+                "email": email,
+                "id": doctor.id,
+            }
         )
     else:
         return jsonify({"message": "Login Failed"}), 401
@@ -248,7 +265,12 @@ def create_token_admin():
     if admin and bcrypt.check_password_hash(admin.password, password):
         access_token = create_access_token(identity=admin.id)
         return jsonify(
-            {"message": "Login Success", "admin_token": access_token, "email": email}
+            {
+                "message": "Login Success",
+                "admin_token": access_token,
+                "email": email,
+                "id": admin.id,
+            }
         )
     else:
         return jsonify({"message": "Login Failed"}), 401
@@ -531,3 +553,65 @@ def listpredict():
 def listpredictdetails(id):
     predictdetails = Prediction.query.get(id)
     return prediction_schema.jsonify(predictdetails)
+
+
+@api.route("/listpredict/<doctor_id>", methods=["GET"])
+def listpredict_for_doctor(doctor_id):
+    predictions = Prediction.query.filter_by(doctorid=doctor_id).all()
+    results = predictions_schema.dump(predictions)
+    return jsonify(results)
+
+
+# TEST UPLOAD IMAGE
+
+UPLOAD_FOLDER = "static/uploads"
+api.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+api.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+
+ALLOWED_EXTENSIONS = set(["png", "jpg", "jpeg"])
+
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@api.route("/upload", methods=["POST"])
+def upload_file():
+    if "files[]" not in request.files:
+        resp = jsonify({"message": "No file part in the request", "status": "failed"})
+        resp.status_code = 400
+        return resp
+
+    files = request.files.getlist("files[]")
+    print(files)
+
+    success = False
+
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(api.config["UPLOAD_FOLDER"], filename))
+
+            newFile = Images(title=filename)
+            db.session.add(newFile)
+            db.session.commit()
+
+            success = True
+
+        else:
+            resp = jsonify({"message": "File type is not allowed", "status": "failed"})
+            return resp
+
+    if success:
+        resp = jsonify({"message": "Files successfully uploaded", "status": "success"})
+        resp.status_code = 201
+        return resp
+
+    return resp
+
+
+@api.route("/images", methods=["GET"])
+def images():
+    all_images = Images.query.all()
+    results = images_schema.dump(all_images)
+    return jsonify(results)

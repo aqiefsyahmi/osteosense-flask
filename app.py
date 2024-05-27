@@ -130,7 +130,7 @@
 
 #     if doctor is None:
 #         return jsonify({"error": "Wrong email or password"}), 401
-    
+
 #     if not bcrypt.check_password_hash(doctor.password, password):
 #         return jsonify ({"error": "Unauthorized"}), 401
 
@@ -152,7 +152,7 @@
 
 #     if user_exists:
 #         return jsonify({"error": "Email already exists"}), 409
-    
+
 #     hashed_password = bcrypt.generate_password_hash(password)
 #     new_user = Doctor(name="doctor3", email=email, password=hashed_password, about="sample about doctor3")
 #     db.session.add(new_user)
@@ -180,20 +180,20 @@
 #     except (RuntimeError, KeyError):
 #         # Case where there is not a valid JWT. Just return the original response
 #         return response
-    
+
 # @api.route("/logout", methods=["POST"])
 # def logout():
 #     response = jsonify({"msg": "logout successful"})
 #     unset_jwt_cookies(response)
 #     return response
-    
+
 # @api.route('/profile/<getemail>')
 # @jwt_required()
 # def my_profile(getemail):
 #     print(getemail)
 #     if not getemail:
 #         return jsonify({"error": "Unauthorized Access"}), 401
-    
+
 #     doctor = Doctor.query.filter_by(email=getemail).first()
 
 #     response_body = {
@@ -215,14 +215,21 @@ from flask_marshmallow import Marshmallow
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from datetime import datetime, timedelta, timezone
-from flask_jwt_extended import JWTManager, create_access_token, get_jwt, get_jwt_identity, unset_jwt_cookies, jwt_required
+from flask_jwt_extended import (
+    JWTManager,
+    create_access_token,
+    get_jwt,
+    get_jwt_identity,
+    unset_jwt_cookies,
+    jwt_required,
+)
 
 api = Flask(__name__)
 CORS(api)
 
 ma = Marshmallow(api)
 
-api.config['SECRET_KEY'] = 'osteosense-flask'
+api.config["SECRET_KEY"] = "osteosense-flask"
 api.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root@localhost/osteosense"
 api.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(api)
@@ -231,6 +238,7 @@ bcrypt = Bcrypt(api)
 
 api.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(api)
+
 
 @api.after_request
 def refresh_expiring_jwts(response):
@@ -242,7 +250,7 @@ def refresh_expiring_jwts(response):
             access_token = create_access_token(identity=get_jwt_identity())
             data = response.get_json()
             if type(data) is dict:
-                data["access_token"] =  access_token
+                data["access_token"] = access_token
                 response.data = json.dumps(data)
         return response
 
@@ -250,9 +258,9 @@ def refresh_expiring_jwts(response):
         # Case where there is not a valid JWT. Just return the original response
         return response
 
+
 # Import the routes from routes.py
 import routes
 
 if __name__ == "__main__":
     api.run()
-    
