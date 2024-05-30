@@ -542,6 +542,14 @@ def predict():
     return {"class": predicted_class, "confidence": float(confidence)}
 
 
+@api.route("/predictdelete/<id>", methods=["DELETE"])
+def predictdelete(id):
+    predict = Prediction.query.get(id)
+    db.session.delete(predict)
+    db.session.commit()
+    return prediction_schema.jsonify(predict)
+
+
 @api.route("/listpredict", methods=["GET"])
 def listpredict():
     all_predict = Prediction.query.all()
