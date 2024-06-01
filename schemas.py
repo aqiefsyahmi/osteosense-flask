@@ -45,6 +45,7 @@ class PredictionSchema(ma.Schema):
             "email",
             "phoneno",
             "doctorid",
+            "imageprediction",
         )
 
 

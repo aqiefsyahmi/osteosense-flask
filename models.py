@@ -74,6 +74,7 @@ class Prediction(db.Model):
     email = db.Column(db.String(150), nullable=False)
     phoneno = db.Column(db.String(15), nullable=False)
     doctorid = db.Column(db.String(11), nullable=False)
+    imageprediction = db.Column(db.String(120), index=True, nullable=False)
 
 
 # IMAGE UPLOAD TEST
