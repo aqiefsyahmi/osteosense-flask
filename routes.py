@@ -3,7 +3,7 @@ from unittest import result
 from PIL import Image
 import cv2
 import numpy as np
-from sqlalchemy import false
+from sqlalchemy import false, func
 import tensorflow as tf
 
 # for image
@@ -182,6 +182,12 @@ def listdoctors():
     all_doctors = Doctor.query.all()
     results = doctors_schema.dump(all_doctors)
     return jsonify(results)
+
+
+@api.route("/countdoctors", methods=["GET"])
+def countdoctors():
+    doctor_count = db.session.query(func.count(Doctor.id)).scalar()
+    return jsonify({"doctor_count": doctor_count})
 
 
 @api.route("/doctordetails/<id>", methods=["GET"])
@@ -458,155 +464,6 @@ def patientdelete(id):
 # PREDICTION DATA
 
 
-# @api.route("/addprediction", methods=["POST"])
-# def addprediction():
-#     try:
-#         # Extracting fields from the JSON request
-#         fullname = request.json.get("fullname")
-#         age = request.json.get("age")
-#         gender = request.json.get("gender")
-#         datetimeprediction = request.json.get("datetimeprediction")
-#         resultprediction = request.json.get("resultprediction")
-#         email = request.json.get("email")
-#         phoneno = request.json.get("phoneno")
-#         doctorid = request.json.get("doctorid")
-#         imageprediction = request.json.get("imageprediction")
-
-#         # Check if the email already exists
-#         # prediction_exists = Prediction.query.filter_by(doctorid=doctorid).first() is not None
-
-#         # if prediction_exists:
-#         #     return jsonify({"error": "Email already exists"}), 409
-
-#         # Creating a new patient
-#         new_prediction = Prediction(
-#             fullname=fullname,
-#             age=age,
-#             gender=gender,
-#             datetimeprediction=datetimeprediction,
-#             resultprediction=resultprediction,
-#             email=email,
-#             phoneno=phoneno,
-#             doctorid=doctorid,
-#             imageprediction=imageprediction,
-#         )
-
-#         # Adding and committing the new user to the database
-#         db.session.add(new_prediction)
-#         db.session.commit()
-
-#         return jsonify(
-#             {
-#                 "message": "Prediction Added",
-#                 "fullname": fullname,
-#                 "age": age,
-#                 "gender": gender,
-#                 "datetimeprediction": datetimeprediction,
-#                 "resultprediction": resultprediction,
-#                 "email": email,
-#                 "phoneno": phoneno,
-#                 "doctorid": doctorid,
-#                 "imageprediction": imageprediction,
-#             }
-#         ), 201
-
-#     except Exception as e:
-#         # Rollback the session in case of an error
-#         db.session.rollback()
-#         # Return the error message
-#         return jsonify({"error": str(e)}), 500
-
-
-# def read_file_as_image(data) -> np.ndarray:
-#     image = np.array(Image.open(BytesIO(data)))
-#     return image
-
-
-# MODEL = tf.keras.models.load_model("./models/TestModel.h5")
-# CLASS_NAMES = ["Osteoporosis", "Normal"]
-
-# UPLOAD_FOLDER_IMGPRED = "prediction/all_images"
-# api.config["UPLOAD_FOLDER_IMGPRED"] = UPLOAD_FOLDER_IMGPRED
-# api.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
-
-# ALLOWED_EXTENSIONS_IMGPRED = set(["png", "jpg", "jpeg"])
-
-
-# def allowed_file_imgpred(filename):
-#     return (
-#         "." in filename
-#         and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS_IMGPRED
-#     )
-
-
-# # @api.route("/predict", methods=["POST"])
-# # def predict():
-# #     file = request.files["file"]
-# #     image = read_file_as_image(file.read())
-# #     image = cv2.resize(image, (256, 256), interpolation=cv2.INTER_AREA)
-# #     img_batch = np.expand_dims(image / 255, 0)
-# #     predictions = MODEL.predict(img_batch)
-
-# #     print(predictions)
-
-# #     if predictions > 0.5:
-# #         predicted_class = "Osteoporosis"
-# #     else:
-# #         predicted_class = "Normal"
-
-# #     confidence = np.max(predictions[0])
-# #     return {"class": predicted_class, "confidence": float(confidence)}
-
-
-# @api.route("/predict", methods=["POST"])
-# def predict():
-#     if "file" not in request.files:
-#         resp = jsonify({"message": "No file part in the request", "status": "failed"})
-#         resp.status_code = 400
-#         return resp
-
-#     files = request.files["file"]
-#     print(files)
-#     success = False
-
-#     for file in files:
-#         if file and allowed_file_imgpred(file.filename):
-#             image = read_file_as_image(file.read())
-#             image = cv2.resize(image, (256, 256), interpolation=cv2.INTER_AREA)
-#             img_batch = np.expand_dims(image / 255, 0)
-#             predictions = MODEL.predict(img_batch)
-
-#             print(predictions)
-
-#             if predictions > 0.5:
-#                 predicted_class = "Osteoporosis"
-#             else:
-#                 predicted_class = "Normal"
-
-#             confidence = np.max(predictions[0])
-
-#             filename = secure_filename(file.filename)
-#             file.save(os.path.join(api.config["UPLOAD_FOLDER_IMGPRED"], filename))
-
-#             newFile = Prediction(imageprediction=filename)
-#             db.session.add(newFile)
-#             db.session.commit()
-
-#             success = True
-#             return {"class": predicted_class, "confidence": float(confidence)}
-
-#         else:
-#             resp = jsonify({"message": "File type is not allowed", "status": "failed"})
-#             return resp
-
-#     if success:
-#         resp = jsonify({"message": "Files successfully uploaded", "status": "success"})
-#         resp.status_code = 201
-#         return resp
-
-#     return resp
-
-
 @api.route("/addprediction", methods=["POST"])
 def addprediction():
     try:
@@ -751,6 +608,12 @@ def listpredict():
     all_predict = Prediction.query.all()
     results = predictions_schema.dump(all_predict)
     return jsonify(results)
+
+
+@api.route("/countpredics", methods=["GET"])
+def countpredics():
+    predict_count = db.session.query(func.count(Prediction.id)).scalar()
+    return jsonify({"predict_count": predict_count})
 
 
 @api.route("/listpredictdetails/<id>", methods=["GET"])
