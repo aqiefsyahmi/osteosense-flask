@@ -403,6 +403,12 @@ def listpatients():
     return jsonify(results)
 
 
+@api.route("/countpatients", methods=["GET"])
+def countpatients():
+    patient_count = db.session.query(func.count(Patient.id)).scalar()
+    return jsonify({"patient_count": patient_count})
+
+
 @api.route("/patientdetails/<id>", methods=["GET"])
 def patientdetails(id):
     patient = Patient.query.get(id)
