@@ -177,6 +177,63 @@ def signupdoctor():
         return jsonify({"error": str(e)}), 500
 
 
+@api.route("/signupdoctormany", methods=["POST"])
+def signupdoctormany():
+    try:
+        # Extracting the list of users from the JSON request
+        users = request.json
+
+        # List to collect any errors encountered during processing
+        errors = []
+        successful_signups = []
+
+        for user in users:
+            email = user.get("email")
+            username = user.get("username")
+            password = user.get("password")
+            fullname = user.get("fullname")
+            phoneno = user.get("phoneno")
+
+            # Check if the email already exists
+            user_exists = Doctor.query.filter_by(email=email).first() is not None
+
+            if user_exists:
+                errors.append({"email": email, "error": "Email already exists"})
+                continue
+
+            # Hashing the password
+            hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
+
+            # Creating a new doctor user
+            new_user = Doctor(
+                username=username,
+                email=email,
+                password=hashed_password,
+                fullname=fullname,
+                phoneno=phoneno,
+            )
+
+            # Adding and committing the new user to the database
+            db.session.add(new_user)
+            successful_signups.append(email)
+
+        db.session.commit()
+
+        return jsonify(
+            {
+                "message": "Users processed",
+                "successful_signups": successful_signups,
+                "errors": errors,
+            }
+        ), 201
+
+    except Exception as e:
+        # Rollback the session in case of an error
+        db.session.rollback()
+        # Return the error message
+        return jsonify({"error": str(e)}), 500
+
+
 @api.route("/listdoctors", methods=["GET"])
 def listdoctors():
     all_doctors = Doctor.query.all()
@@ -356,6 +413,9 @@ def my_profile_admin(getemail):
 @api.route("/signuppatient", methods=["POST"])
 def signuppatient():
     try:
+        # Log the incoming request data
+        print("Incoming request data:", request.json)
+
         # Extracting fields from the JSON request
         fullname = request.json.get("fullname")
         age = request.json.get("age")
@@ -390,8 +450,12 @@ def signuppatient():
         ), 201
 
     except Exception as e:
+        # Log the error
+        print("Error occurred:", str(e))
+
         # Rollback the session in case of an error
         db.session.rollback()
+
         # Return the error message
         return jsonify({"error": str(e)}), 500
 
