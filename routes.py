@@ -12,14 +12,13 @@ import urllib.request
 from werkzeug.utils import secure_filename
 
 from app import api, db, bcrypt
-from models import Doctor, Users, Admin, Patient, Prediction, Images
+from models import Doctor, Users, Admin, Patient, Prediction
 from schemas import (
     UserSchema,
     AdminSchema,
     DoctorSchema,
     PatientSchema,
     PredictionSchema,
-    ImageSchema,
 )
 from flask import jsonify, request
 from flask_jwt_extended import (
@@ -43,9 +42,6 @@ patients_schema = PatientSchema(many=True)
 
 prediction_schema = PredictionSchema()
 predictions_schema = PredictionSchema(many=True)
-
-image_schema = ImageSchema()
-images_schema = ImageSchema(many=True)
 
 
 @api.route("/")
@@ -286,13 +282,13 @@ def logout():
     return response
 
 
-@api.route("/profile/<getemail>")
-def my_profile(getemail):
-    print(getemail)
-    if not getemail:
+@api.route("/profile/<getId>")
+def my_profile(getId):
+    print(getId)
+    if not getId:
         return jsonify({"error": "Unauthorized Access"}), 401
 
-    doctor = Doctor.query.filter_by(email=getemail).first()
+    doctor = Doctor.query.filter_by(id=getId).first()
 
     response_body = {
         "id": doctor.id,
@@ -390,13 +386,13 @@ def logoutadmin():
     return response
 
 
-@api.route("/profileadmin/<getemail>")
-def my_profile_admin(getemail):
-    print(getemail)
-    if not getemail:
+@api.route("/profileadmin/<getId>")
+def my_profile_admin(getId):
+    print(getId)
+    if not getId:
         return jsonify({"error": "Unauthorized Access"}), 401
 
-    admin = Admin.query.filter_by(email=getemail).first()
+    admin = Admin.query.filter_by(id=getId).first()
 
     response_body = {
         "id": admin.id,
@@ -471,6 +467,12 @@ def listpatients():
 def countpatients():
     patient_count = db.session.query(func.count(Patient.id)).scalar()
     return jsonify({"patient_count": patient_count})
+
+
+@api.route("/countpatients/<gender>", methods=["GET"])
+def count_patients_by_gender(gender):
+    count = Patient.query.filter_by(gender=gender).count()
+    return jsonify({"gender": gender, "count": count})
 
 
 @api.route("/patientdetails/<id>", methods=["GET"])
@@ -587,6 +589,60 @@ def addprediction():
         return jsonify({"error": str(e)}), 500
 
 
+# MANY PREDICTION INPUT TEST
+# @api.route("/addlistpredictionmany", methods=["POST"])
+# def addlistpredictionmany():
+#     try:
+#         # Extracting the list of predictions from the JSON request
+#         predictions = request.json
+
+#         # Checking if predictions is a list
+#         if not isinstance(predictions, list):
+#             return jsonify({"error": "Input should be a list of predictions"}), 400
+
+#         # Creating a list to store new predictions
+#         new_predictions = []
+
+#         for prediction in predictions:
+#             fullname = prediction.get("fullname")
+#             age = prediction.get("age")
+#             gender = prediction.get("gender")
+#             datetimeprediction = prediction.get("datetimeprediction")
+#             resultprediction = prediction.get("resultprediction")
+#             email = prediction.get("email")
+#             phoneno = prediction.get("phoneno")
+#             doctorid = prediction.get("doctorid")
+#             imageprediction = prediction.get("imageprediction")
+
+#             # Creating a new prediction object
+#             new_prediction = Prediction(
+#                 fullname=fullname,
+#                 age=age,
+#                 gender=gender,
+#                 datetimeprediction=datetimeprediction,
+#                 resultprediction=resultprediction,
+#                 email=email,
+#                 phoneno=phoneno,
+#                 doctorid=doctorid,
+#                 imageprediction=imageprediction,
+#             )
+
+#             # Adding the new prediction to the list
+#             new_predictions.append(new_prediction)
+
+#         # Adding and committing the new predictions to the database
+#         db.session.bulk_save_objects(new_predictions)
+#         db.session.commit()
+
+#         return jsonify({"message": f"{len(new_predictions)} predictions added"}), 201
+
+#     except Exception as e:
+#         # Rollback the session in case of an error
+#         db.session.rollback()
+#         # Return the error message
+#         return jsonify({"error": str(e)}), 500
+
+
 def read_file_as_image(data) -> np.ndarray:
     image = np.array(Image.open(BytesIO(data)))
     return image
@@ -686,6 +742,22 @@ def countpredics():
     return jsonify({"predict_count": predict_count})
 
 
+@api.route("/countpredics/<resultprediction>", methods=["GET"])
+def count_patients_by_and_condition(resultprediction):
+    count = Prediction.query.filter_by(resultprediction=resultprediction).count()
+    return jsonify({"resultprediction": resultprediction, "count": count})
+
+
+@api.route("/countpredics/<gender>/<resultprediction>", methods=["GET"])
+def count_patients_by_gender_and_condition(gender, resultprediction):
+    count = Prediction.query.filter_by(
+        gender=gender, resultprediction=resultprediction
+    ).count()
+    return jsonify(
+        {"gender": gender, "resultprediction": resultprediction, "count": count}
+    )
+
+
 @api.route("/listpredictdetails/<id>", methods=["GET"])
 def listpredictdetails(id):
     predictdetails = Prediction.query.get(id)
@@ -696,4 +768,92 @@ def listpredictdetails(id):
 def listpredict_for_doctor(doctor_id):
     predictions = Prediction.query.filter_by(doctorid=doctor_id).all()
     results = predictions_schema.dump(predictions)
+    return jsonify(results)
+
+
+@api.route("/doctor_with_predictions/<doctor_id>", methods=["GET"])
+def doctor_with_predictions(doctor_id):
+    # Fetch doctor details
+    doctor = Doctor.query.get(doctor_id)
+    if not doctor:
+        return jsonify({"error": "Doctor not found"}), 404
+
+    # Fetch predictions for the doctor
+    predictions = Prediction.query.filter_by(doctorid=doctor_id).all()
+
+    # Serialize the doctor and predictions data
+    doctor_data = doctor_schema.dump(doctor)
+    predictions_data = predictions_schema.dump(predictions)
+
+    # Count the number of predictions
+    predictions_count = len(predictions)
+
+    # Count the number of predictions for osteoporosis and normal
+    osteoporosis_count = len(
+        [p for p in predictions if p.resultprediction == "Osteoporosis"]
+    )
+    normal_count = len([p for p in predictions if p.resultprediction == "Normal"])
+
+    # Count the number of predictions for normal and osteoporosis for male and female
+    normal_male_count = len(
+        [
+            p
+            for p in predictions
+            if p.resultprediction == "Normal" and p.gender == "male"
+        ]
+    )
+    osteo_male_count = len(
+        [
+            p
+            for p in predictions
+            if p.resultprediction == "Osteoporosis" and p.gender == "male"
+        ]
+    )
+    normal_female_count = len(
+        [
+            p
+            for p in predictions
+            if p.resultprediction == "Normal" and p.gender == "female"
+        ]
+    )
+    osteo_female_count = len(
+        [
+            p
+            for p in predictions
+            if p.resultprediction == "Osteoporosis" and p.gender == "female"
+        ]
+    )
+
+    # Combine the data into a single response
+    response = {
+        "doctor": doctor_data,
+        "predictions": predictions_data,
+        "predictions_count": predictions_count,
+        "osteoporosis_count": osteoporosis_count,
+        "normal_count": normal_count,
+        "normal_male_count": normal_male_count,
+        "osteo_male_count": osteo_male_count,
+        "normal_female_count": normal_female_count,
+        "osteo_female_count": osteo_female_count,
+        "male_count": normal_male_count + osteo_male_count,
+        "female_count": normal_female_count + osteo_female_count,
+    }
+
+    return jsonify(response)
+
+
+@api.route("/listdoctorswithcount", methods=["GET"])
+def listdoctorswithcount():
+    all_doctors = Doctor.query.all()
+    results = doctors_schema.dump(all_doctors)
+
+    for doctor in results:
+        doctor_id = doctor["id"]
+        predict_count = (
+            db.session.query(func.count(Prediction.id))
+            .filter_by(doctorid=doctor_id)
+            .scalar()
+        )
+        doctor["predict_count"] = predict_count
+
     return jsonify(results)
