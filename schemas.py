@@ -47,12 +47,3 @@ class PredictionSchema(ma.Schema):
             "doctorid",
             "imageprediction",
         )
-
-
-class ImageSchema(ma.Schema):
-    class Meta:
-        # Fields to expose
-        fields = (
-            "id",
-            "title",
-        )

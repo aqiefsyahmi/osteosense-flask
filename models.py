@@ -75,11 +75,3 @@ class Prediction(db.Model):
     phoneno = db.Column(db.String(15), nullable=False)
     doctorid = db.Column(db.String(11), nullable=False)
     imageprediction = db.Column(db.String(120), index=True, nullable=False)
-
-
-# IMAGE UPLOAD TEST
-class Images(db.Model):
-    __tablename__ = "images"
-
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(120), index=True, unique=True)
